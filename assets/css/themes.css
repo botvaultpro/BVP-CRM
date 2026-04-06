@@ -1,0 +1,101 @@
+/* ═══════════════════════════════════════════════════════
+   BOT VAULT PRO — THEME DEFINITIONS
+   Each theme overrides the CSS custom properties on :root.
+   The active theme is set via data-theme="<id>" on <html>.
+   ═══════════════════════════════════════════════════════ */
+
+/* ── DARK (default) ──────────────────────────────────── */
+:root,
+[data-theme="dark"] {
+  --bg: #09090a;
+  --bg2: #0d0d0f;
+  --bg3: #111113;
+  --bg4: #18181b;
+  --border: #27272a;
+  --border2: #1f1f23;
+  --text: #e4e4e7;
+  --muted: #a1a1aa;
+  --dim: #71717a;
+  --faint: #52525b;
+  --fainter: #3f3f46;
+  --accent: #ff6b00;
+  --green: #4ade80;
+  --red: #f87171;
+  --yellow: #ffc107;
+}
+
+/* ── MIDNIGHT (deep navy) ────────────────────────────── */
+[data-theme="midnight"] {
+  --bg: #060c18;
+  --bg2: #09111f;
+  --bg3: #0d1626;
+  --bg4: #12202f;
+  --border: #1c2f4a;
+  --border2: #162438;
+  --text: #e0e8f4;
+  --muted: #8fa8c4;
+  --dim: #5e7a96;
+  --faint: #3f5975;
+  --fainter: #2d4159;
+  --accent: #38bdf8;
+  --green: #4ade80;
+  --red: #f87171;
+  --yellow: #ffc107;
+}
+
+/* ── FOREST (dark green) ─────────────────────────────── */
+[data-theme="forest"] {
+  --bg: #060e08;
+  --bg2: #0a1410;
+  --bg3: #0e1b14;
+  --bg4: #13221a;
+  --border: #1c3526;
+  --border2: #15281c;
+  --text: #ddf0e3;
+  --muted: #90c4a0;
+  --dim: #5d8e6b;
+  --faint: #3d6349;
+  --fainter: #2b4a35;
+  --accent: #4ade80;
+  --green: #4ade80;
+  --red: #f87171;
+  --yellow: #ffc107;
+}
+
+/* ── LIGHT (clean white) ─────────────────────────────── */
+[data-theme="light"] {
+  --bg: #f9fafb;
+  --bg2: #f3f4f6;
+  --bg3: #ffffff;
+  --bg4: #e5e7eb;
+  --border: #d1d5db;
+  --border2: #e5e7eb;
+  --text: #111827;
+  --muted: #4b5563;
+  --dim: #6b7280;
+  --faint: #9ca3af;
+  --fainter: #d1d5db;
+  --accent: #2563eb;
+  --green: #16a34a;
+  --red: #dc2626;
+  --yellow: #d97706;
+}
+
+/* ── VIOLET (deep purple) ────────────────────────────── */
+[data-theme="violet"] {
+  --bg: #09080f;
+  --bg2: #0d0b16;
+  --bg3: #120f1d;
+  --bg4: #181424;
+  --border: #2d254a;
+  --border2: #221c3a;
+  --text: #ede9f8;
+  --muted: #a89ed4;
+  --dim: #7468a8;
+  --faint: #4e4578;
+  --fainter: #3a3359;
+  --accent: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --yellow: #ffc107;
+}

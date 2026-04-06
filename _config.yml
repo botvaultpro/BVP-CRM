@@ -1,0 +1,12 @@
+title: Bot Vault Pro CRM
+description: Professional CRM for service businesses — powered by Bot Vault Pro
+baseurl: ""
+url: ""
+
+# Build settings
+markdown: kramdown
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+  - .git
