@@ -148,18 +148,36 @@ button{cursor:pointer;font-family:inherit}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 @keyframes cursor-blink{0%,100%{opacity:1}50%{opacity:0}}
 .cursor{animation:cursor-blink .5s infinite}
+/* Pipeline drag-and-drop */
+.pipeline-card { cursor: grab; transition: opacity .15s, transform .15s; }
+.pipeline-card:active { cursor: grabbing; }
+.pipeline-card.dragging { opacity: .4; }
+.pipeline-col.drag-over { outline: 2px dashed var(--accent); outline-offset: -4px; background: rgba(255,107,0,.04); }
+/* Bottom nav */
+.bnav-btn { background:transparent; border:none; color:var(--dim); display:flex; flex-direction:column; align-items:center; gap:2px; font-size:10px; font-weight:600; cursor:pointer; padding:4px 8px; letter-spacing:.04em; }
+.bnav-btn.active { color: var(--accent); }
 /* Responsive */
 @media(max-width:640px){
+  #shell { flex-direction: column; }
+  #sidebar { display: none; }
+  #main { padding: 12px; padding-bottom: 80px; }
+  #bottom-nav { display: flex !important; }
+  .form-grid { grid-template-columns: 1fr !important; }
+  .pipeline-cols { grid-auto-columns: 80vw; overflow-x: auto; }
+  .pipeline-col { min-width: 80vw; }
+  .detail-grid { grid-template-columns: 1fr !important; }
+  .modal-box { margin: 0; border-radius: 16px 16px 0 0; position: fixed; bottom: 0; left: 0; right: 0; max-width: 100% !important; max-height: 90vh; overflow-y: auto; }
+  .modal-overlay { align-items: flex-end; }
+  #topbar { padding: 0 12px; }
+  .topbar-right button:not(.btn-add) { display: none; }
+  .ind-grid { grid-template-columns: repeat(2, 1fr) !important; }
   .stat-grid{grid-template-columns:1fr 1fr}
   .two-col{grid-template-columns:1fr}
   .detail-grid{grid-template-columns:1fr}
   .ai-actions-grid{grid-template-columns:repeat(2,1fr)}
-  #sidebar{width:52px}
-  .nav-btn span:not(.nav-icon){display:none}
-  .nav-btn{justify-content:center;padding:10px}
-  .sidebar-stat,.sidebar-footer,.sidebar-divider{display:none}
   .tbl-header,.tbl-row{grid-template-columns:1fr 80px 90px !important}
   .tbl-col-actions,.tbl-cell-actions,.tbl-col-type,.tbl-cell-type{display:none}
+  h2[style*="font-size:24px"] { font-size: 20px !important; }
 }
 </style>
 </head>
@@ -1348,6 +1366,10 @@ function setView(name) {
     const isActive = btn.dataset.view === name;
     btn.classList.toggle('active', isActive);
   });
+  document.querySelectorAll('.bnav-btn').forEach(btn => {
+    const bId = btn.id?.replace('bnav-','');
+    btn.classList.toggle('active', bId === name);
+  });
 
   ['dashboard','clients','pipeline','reminders','report','settings','admin'].forEach(v => {
     const el = document.getElementById(`view-${v}`);
@@ -1438,6 +1460,7 @@ function filterByStage(stage) {
 function openClientDetail(id) {
   STATE.selectedClient = STATE.clients.find(c=>c.id===id);
   setView('clients');
+  setTimeout(() => renderActivityFeed(id), 0);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1519,6 +1542,7 @@ function getFilteredClients() {
 function selectClient(id) {
   STATE.selectedClient = STATE.selectedClient?.id === id ? null : STATE.clients.find(c=>c.id===id);
   renderClients();
+  if (STATE.selectedClient) setTimeout(() => renderActivityFeed(STATE.selectedClient.id), 0);
 }
 
 function renderClientDetail() {
@@ -1575,6 +1599,15 @@ function renderClientDetail() {
       </div>
       <p style="font-size:11px;color:var(--faint);margin-top:10px">AI writes it. You copy it. You send it.</p>
     </div>
+
+    <div style="margin-top:18px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Activity Log</div>
+      <div id="activity-log-feed" style="max-height:200px;overflow-y:auto;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <input id="activity-note-input" placeholder="Add a note..." style="flex:1;font-size:13px" onkeydown="if(event.key==='Enter')addActivityNote('${c.id}')"/>
+        <button onclick="addActivityNote('${c.id}')" style="background:var(--accent);border:none;border-radius:8px;padding:9px 16px;color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;white-space:nowrap">ADD</button>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1584,6 +1617,10 @@ async function quickUpdateStage(id, stage) {
   if (idx>=0) STATE.clients[idx].stage = stage;
   if (STATE.selectedClient?.id===id) STATE.selectedClient.stage = stage;
   updateSidebarStats();
+  const notes = getActivityLog(id);
+  notes.push({ text: `Stage changed to "${stage}"`, ts: new Date().toISOString() });
+  saveActivityLog(id, notes);
+  renderActivityFeed(id);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1606,14 +1643,14 @@ function renderPipeline() {
         const col = clients.filter(c=>c.stage===stage);
         const sv = col.reduce((s,c)=>s+Number(c.pipeline_value||0),0);
         const sc = stageColor(stage);
-        return `<div class="pipeline-col">
+        return `<div class="pipeline-col" ondragover="pipeDragOver(event)" ondragleave="pipeDragLeave(event)" ondrop="pipeDrop(event,'${stage}')">
           <div class="pipeline-col-head">
             <span style="font-size:11px;font-weight:700;color:${sc};text-transform:uppercase;letter-spacing:.06em">${stage}</span>
             <span style="background:${sc}18;color:${sc};border:1px solid ${sc}33;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700">${col.length}</span>
           </div>
           ${sv>0?`<div style="font-size:11px;color:var(--faint);margin-bottom:8px">$${sv.toLocaleString()}</div>`:''}
           ${col.length===0?`<div style="color:var(--fainter);font-size:12px;text-align:center;padding:16px 0">—</div>`:
-            col.map(c=>`<div class="pipeline-card" style="background:var(--bg3);border-left:3px solid ${sc};border-top:1px solid var(--border2);border-right:1px solid var(--border2);border-bottom:1px solid var(--border2)" onclick="openClientDetail('${c.id}')">
+            col.map(c=>`<div class="pipeline-card" draggable="true" ondragstart="pipeDragStart(event,'${c.id}')" ondragend="pipeDragEnd(event)" onclick="openClientDetail('${c.id}')" style="background:var(--bg3);border-left:3px solid ${sc};border-top:1px solid var(--border2);border-right:1px solid var(--border2);border-bottom:1px solid var(--border2)">
               <div style="font-weight:600;font-size:13px;margin-bottom:3px">${c.full_name}</div>
               <div style="font-size:11px;color:var(--dim)">${c.job_type||''}</div>
               ${c.pipeline_value>0?`<div style="font-size:12px;font-weight:700;color:#4ade80;margin-top:6px">$${Number(c.pipeline_value).toLocaleString()}</div>`:''}
@@ -2442,6 +2479,92 @@ async function changePassword() {
 }
 
 // ═══════════════════════════════════════════════════════
+// ACTIVITY LOG (localStorage)
+// ═══════════════════════════════════════════════════════
+function getActivityLog(clientId) {
+  try { return JSON.parse(localStorage.getItem(`bvp_notes_${clientId}`) || '[]'); } catch(e) { return []; }
+}
+
+function saveActivityLog(clientId, notes) {
+  localStorage.setItem(`bvp_notes_${clientId}`, JSON.stringify(notes));
+}
+
+function renderActivityFeed(clientId) {
+  const el = document.getElementById('activity-log-feed');
+  if (!el) return;
+  const notes = getActivityLog(clientId);
+  if (notes.length === 0) {
+    el.innerHTML = '<div style="color:var(--faint);font-size:12px;font-style:italic">No notes yet.</div>';
+    return;
+  }
+  el.innerHTML = notes.slice().reverse().map(n => `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 10px;background:var(--bg2);border-radius:7px;margin-bottom:6px;gap:10px">
+      <div style="font-size:12px;color:var(--text);line-height:1.5;flex:1">${n.text}</div>
+      <div style="font-size:10px;color:var(--faint);white-space:nowrap">${new Date(n.ts).toLocaleDateString([], {month:'short',day:'numeric'})}<br/>${new Date(n.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>`).join('');
+  el.scrollTop = 0;
+}
+
+function addActivityNote(clientId) {
+  const input = document.getElementById('activity-note-input');
+  const text = input?.value?.trim();
+  if (!text) return;
+  const notes = getActivityLog(clientId);
+  notes.push({ text, ts: new Date().toISOString() });
+  saveActivityLog(clientId, notes);
+  input.value = '';
+  renderActivityFeed(clientId);
+}
+
+// ═══════════════════════════════════════════════════════
+// PIPELINE DRAG-AND-DROP
+// ═══════════════════════════════════════════════════════
+let _dragClientId = null;
+
+function pipeDragStart(e, clientId) {
+  _dragClientId = clientId;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function pipeDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.pipeline-col').forEach(c => c.classList.remove('drag-over'));
+}
+
+function pipeDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.closest('.pipeline-col')?.classList.add('drag-over');
+}
+
+function pipeDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('drag-over');
+  }
+}
+
+async function pipeDrop(e, stage) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!_dragClientId) return;
+  const id = _dragClientId;
+  _dragClientId = null;
+  const client = STATE.clients.find(c => c.id === id);
+  if (!client || client.stage === stage) return;
+  // Optimistic update
+  client.stage = stage;
+  renderPipeline();
+  // Log the stage change
+  const notes = getActivityLog(id);
+  notes.push({ text: `Stage changed to "${stage}"`, ts: new Date().toISOString() });
+  saveActivityLog(id, notes);
+  // DB update
+  await sb.from('customers').update({ stage, updated_at: new Date().toISOString() }).eq('id', id);
+  updateSidebarStats();
+}
+
+// ═══════════════════════════════════════════════════════
 // INIT — CHECK SESSION
 // ═══════════════════════════════════════════════════════
 (async () => {
@@ -2553,6 +2676,25 @@ async function removePin() {
   renderSettings();
 }
 </script>
+
+<!-- ═══════════════════════════════════════
+     BOTTOM NAV (mobile)
+═══════════════════════════════════════ -->
+<nav id="bottom-nav" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:500;background:var(--bg2);border-top:1px solid var(--border);padding:8px 0 max(8px,env(safe-area-inset-bottom));justify-content:space-around;align-items:center">
+  <button onclick="setView('dashboard')" class="bnav-btn" id="bnav-dashboard">
+    <span style="font-size:20px">◈</span><span>Home</span>
+  </button>
+  <button onclick="setView('clients')" class="bnav-btn" id="bnav-clients">
+    <span style="font-size:20px">⊕</span><span>Clients</span>
+  </button>
+  <button onclick="openAddClient()" style="background:var(--accent);border:none;border-radius:50%;width:48px;height:48px;font-size:22px;color:#fff;cursor:pointer;box-shadow:0 4px 12px rgba(255,107,0,.4);margin-bottom:4px">+</button>
+  <button onclick="setView('pipeline')" class="bnav-btn" id="bnav-pipeline">
+    <span style="font-size:20px">▦</span><span>Pipeline</span>
+  </button>
+  <button onclick="setView('settings')" class="bnav-btn" id="bnav-settings">
+    <span style="font-size:20px">⚙</span><span>Settings</span>
+  </button>
+</nav>
 
 <!-- ═══════════════════════════════════════
      LOCK SCREEN
